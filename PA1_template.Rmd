@@ -1,0 +1,114 @@
+---
+title: "Reproducible Research Project 1"
+author: "Joseph"
+date: "April 4, 2016"
+output:
+  md_document:
+    variant: markdown_github
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+###Load the data set and the plotting library:
+
+```{r dataset}
+setwd("C:/Users/JOSEPH/Documents/DataScience/RepResearch")
+library(ggplot2)
+ds <- read.csv("activity.csv")
+head(ds)
+dim(ds)
+```
+##Mean Total Number of Steps taken per day
+
+We aggregate steps by each date:
+
+```{r TotStep}
+stepTot <- aggregate(steps~date,ds,sum,na.rm=TRUE)
+dim(stepTot)
+head(stepTot)
+```
+###Histogram of the total number of steps taken each day
+
+```{r stepTotal, echo=TRUE}
+ggplot(stepTot, aes(x = steps)) +geom_histogram(fill = "purple", binwidth = 1000) +
+ labs(title = "Daily Total Steps", x = "Total Steps", y = "Frequency")
+```
+
+####Mean total number of steps taken per day:
+```{r mean}
+stepMean <-  mean(stepTot$steps, na.rm=TRUE)
+stepMean
+```
+####Median total number of steps taken per day:
+```{r median}
+stepMedian <-  median(stepTot$steps, na.rm=TRUE)
+stepMedian
+```
+##Daily Activity Pattern
+
+Daily Steps Averages:
+```{r avg}
+stepAvg <- aggregate(steps~interval,ds,mean,na.rm=TRUE)
+head(stepAvg)
+summary(stepAvg)
+```
+###Time series plot of the 5-minute interval and the average number of steps taken, averaged across all days
+
+Let us plot Average Daily Steps
+```{r plotAvg, echo=TRUE}
+ggplot(stepAvg, aes(x =interval , y=steps)) +
+  geom_line(size=1) +
+  labs(title = "Average of Daily Steps", x = "Interval", y = "Avg. Steps per day")
+```
+###5-minute interval, on average across all the days in the dataset, that contains the maximum number of steps
+```{r maxinterval}
+stepAvg[which.max(stepAvg$steps),]$interval
+```
+##Imputing missing values
+
+Missing data will be replaced with the mean for that day
+```{r newds}
+dsNew <- ds
+notEx <- is.na(ds$steps)
+repl <- tapply(dsNew$steps, dsNew$interval, mean, na.rm=TRUE, simplify = TRUE)
+dsNew$steps[notEx] <- repl[as.character(dsNew$interval[notEx])]
+head(dsNew)
+```
+A new histogram of total steps for the comlete data set:
+```{r stepTotNew, echo=TRUE}
+stepAvgNew <- aggregate(steps~interval,dsNew,mean,na.rm=TRUE)
+ggplot(stepTot, aes(x = steps)) +geom_histogram(fill = "blue", binwidth = 1000) +
+  labs(title = "Daily Total Steps (missing data to median)", x = "Total Steps", y = "Frequency")
+```
+##Differences in activity patterns between weekdays and weekends
+
+We add field wDay to the data frame to distinguish week ends from week days
+```{r newFld}
+dsNew$date <- as.Date(dsNew$date)
+#create a vector of weekdays
+weekdays1 <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+head(dsNew)
+dsNew$wDay <- factor((weekdays(dsNew$date) %in% weekdays1), 
+                   levels=c(FALSE, TRUE), labels=c('weekend', 'weekday') )
+
+##Reorder columns
+dsNew<- dsNew[, c("wDay","date", "interval", "steps")]
+head(dsNew)
+```
+Aggregate the data, split by Interval and wDay
+```{r wDay}
+stepAvgNewW <- aggregate(steps~interval+wDay,data=dsNew,mean,na.rm=TRUE)
+head(subset(stepAvgNewW,wDay=="weekend"))
+head(subset(stepAvgNewW,wDay=="weekday"))
+```
+Plot comparison, Week End vs. Week Day
+```{r Comp, echo=TRUE}
+ggplot(stepAvgNewW, aes(x =interval , y=steps, color=wDay)) +
+  geom_line() +
+  labs(title = "Avg. Daily Steps Week Day vs Week End", x = "Interval", y = "Num of Steps") +
+  facet_wrap(~wDay, ncol = 1, nrow=2)
+```
